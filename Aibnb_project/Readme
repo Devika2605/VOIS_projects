@@ -84,18 +84,18 @@ Availability: Hosts with more listings tend to have slightly lower availability 
 
 📈 Visualizations
 
-Property type distribution
+Property type distribution<br>
 
-Listings count by neighborhood group
+Listings count by neighborhood group<br>
 
-Average price by neighborhood group
+Average price by neighborhood group<br>
 
-Scatterplot: Construction year vs Price
+Scatterplot: Construction year vs Price<br>
 
-Top 10 hosts by listing count
+Top 10 hosts by listing count<br>
 
-Review ratings by host verification status
+Review ratings by host verification status<br>
 
-Correlation plots: Price vs Service Fee
+Correlation plots: Price vs Service Fee<br>
 
 Availability vs Host Listing Count
