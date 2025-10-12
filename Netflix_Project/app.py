@@ -8,7 +8,7 @@ st.set_page_config(page_title="Netflix Dataset Dashboard", layout="wide")
 # ---------- LOAD DATA ----------
 @st.cache_data
 def load_data():
-    df = pd.read_csv("Netflix Dataset.csv")
+    df = pd.read_csv("Netflix_Dataset.csv")
 
     # Normalize columns
     df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]
@@ -135,3 +135,4 @@ with tab4:
 # ---------- RAW DATA VIEW ----------
 with st.expander("📋 View Raw Data"):
     st.dataframe(filtered_df)
+
