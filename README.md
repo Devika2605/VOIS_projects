@@ -16,8 +16,8 @@ This repository contains two data analysis projects exploring content trends, di
 ## 🧩 Tools & Libraries
 
 - **Language**: Python 3.x  
-- **Libraries**: Pandas, NumPy, Matplotlib, Seaborn, SciPy, scikit-learn, Plotly (optional), Streamlit  
-- **Environment**: Google Colab / Jupyter Notebook / Local Python  
+- **Libraries**: Pandas, NumPy, Matplotlib, Seaborn, SciPy, scikit-learn, Plotly, Streamlit  
+- **Environment**: Google Colab / VS Code / Local python 
 
 ---
 
@@ -63,6 +63,6 @@ This repository contains two data analysis projects exploring content trends, di
 ![Screenshot 2025-10-12 210255](https://github.com/user-attachments/assets/5883e66f-671c-4503-9a00-93d2baaf574c)
 
 
-## Airbnb
+## Airbnb:
 
 <img width="1589" height="973" alt="output" src="https://github.com/user-attachments/assets/85156e05-69a1-412e-abae-93422dad4907" />
