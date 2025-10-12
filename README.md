@@ -56,12 +56,13 @@ This repository contains two data analysis projects exploring content trends, di
 
 ## 📈 Example Visualizations
 
-## netflix:
+## Netflix:
 
 ![Screenshot 2025-10-12 210519](https://github.com/user-attachments/assets/c2025fde-2877-4e92-b9fb-c04aa4dd04ca)
+
 ![Screenshot 2025-10-12 210255](https://github.com/user-attachments/assets/5883e66f-671c-4503-9a00-93d2baaf574c)
 
 
-##Arbnb
+## Airbnb
 
 <img width="1589" height="973" alt="output" src="https://github.com/user-attachments/assets/85156e05-69a1-412e-abae-93422dad4907" />
