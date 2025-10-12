@@ -63,7 +63,6 @@ Top Directors by Production Count
 🖥 Output Example
 ![Screenshot 2025-10-12 210519](https://github.com/user-attachments/assets/50436aaa-c7a0-4a2b-8afd-f4cbb1d68baa)
 
+![Screenshot 2025-10-12 210318](https://github.com/user-attachments/assets/a956ab62-3d94-4d43-9e4e-8af18858243b)
 
-
-
-🖥 Output Example
+![Screenshot 2025-10-12 210255](https://github.com/user-attachments/assets/44bd1931-2e1e-47b5-8f27-c5bf14e8f6ce)
