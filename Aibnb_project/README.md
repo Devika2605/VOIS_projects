@@ -67,8 +67,6 @@ Availability vs Host Listing Count
 
 OUTPUT:
 
+<img width="1589" height="973" alt="image" src="https://github.com/user-attachments/assets/c0a5c007-13f4-4264-9aa0-3fe975a79bca" />
 
-
-
-https://github.com/Devika2605/VOIS_projects/blob/b95d69adeabae09941f3ea22c0664094ffd07863/Aibnb_project/output.png
 
