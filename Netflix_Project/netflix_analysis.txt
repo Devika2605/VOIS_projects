@@ -1,0 +1,289 @@
+%matplotlib inline
+
+
+
+from google.colab import files
+uploaded = files.upload()
+
+
+import os, re, zipfile
+from pathlib import Path
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Output folders
+OUTDIR = Path("/content/NETFLIX_ANALYSIS")
+PLOTS_DIR = OUTDIR / "plots"
+TABLES_DIR = OUTDIR / "tables"
+OUTDIR.mkdir(parents=True, exist_ok=True)
+PLOTS_DIR.mkdir(exist_ok=True)
+TABLES_DIR.mkdir(exist_ok=True)
+
+print("Outputs will be saved to:", OUTDIR)
+
+
+# Set path to your CSV file
+DATA_PATH = "/content/Netflix Dataset.csv"   # update if different
+
+# Load
+df = pd.read_csv(DATA_PATH)
+print("Loaded shape:", df.shape)
+print("Columns:", df.columns.tolist())
+display(df.head(6))
+
+
+# Normalize column names
+df_clean = df.copy()
+df_clean.columns = [c.strip().lower().replace(" ", "_") for c in df_clean.columns]
+
+cols = df_clean.columns.tolist()
+
+def find_col(keywords):
+    for k in keywords:
+        for c in cols:
+            if k in c:
+                return c
+    return None
+
+col_title = find_col(["title", "name"])
+col_type  = find_col(["type", "category"])        # Movie vs TV Show often in 'type' or 'category'
+col_director = find_col(["director"])
+col_cast = find_col(["cast", "actors", "starring"])
+col_country = find_col(["country", "countries", "origin"])
+col_duration = find_col(["duration", "runtime"])
+col_rating = find_col(["rating"])
+col_release_raw = find_col(["release_date", "release", "date"])
+col_genres = find_col(["listed_in", "genres", "category"])  # 'category' often holds genres too
+
+print("Detected columns:")
+for k,v in [("title",col_title),("type",col_type),("genres",col_genres),
+            ("director",col_director),("cast",col_cast),("country",col_country),
+            ("duration",col_duration),("release_raw",col_release_raw)]:
+    print(f"  {k}: {v}")
+
+
+# Extract release_year (try 4-digit pattern)
+def extract_year(text):
+    if pd.isna(text): return pd.NA
+    s = str(text)
+    m = re.search(r"(19\d{2}|20[0-2]\d|2025)", s)
+    if m:
+        return int(m.group(0))
+    try:
+        v = int(s)
+        if 1800 < v < 2050:
+            return v
+    except:
+        return pd.NA
+
+if col_release_raw:
+    df_clean['release_year'] = df_clean[col_release_raw].apply(extract_year)
+else:
+    df_clean['release_year'] = pd.NA
+
+# date_added if present
+date_added_col = find_col(["date_added","added"])
+if date_added_col:
+    df_clean['date_added_parsed'] = pd.to_datetime(df_clean[date_added_col], errors='coerce')
+    df_clean['year_added'] = df_clean['date_added_parsed'].dt.year
+else:
+    df_clean['date_added_parsed'] = pd.NaT
+    df_clean['year_added'] = pd.NA
+
+# Parse duration strings
+def parse_duration(x):
+    if pd.isna(x): return (pd.NA, pd.NA)
+    s = str(x).lower()
+    if 'min' in s:
+        nums = re.findall(r'\d+', s)
+        return (int(nums[0]) if nums else pd.NA, 'minutes')
+    if 'season' in s:
+        nums = re.findall(r'\d+', s)
+        return (int(nums[0]) if nums else pd.NA, 'seasons')
+    nums = re.findall(r'\d+', s)
+    return (int(nums[0]) if nums else pd.NA, None)
+
+if col_duration:
+    parsed = df_clean[col_duration].apply(parse_duration)
+    df_clean['duration_value'] = parsed.apply(lambda t: t[0])
+    df_clean['duration_unit'] = parsed.apply(lambda t: t[1])
+else:
+    df_clean['duration_value'] = pd.NA
+    df_clean['duration_unit'] = pd.NA
+
+# Split multi-value fields (comma-separated)
+def split_list(v):
+    if pd.isna(v): return []
+    return [p.strip() for p in str(v).split(",") if p.strip()]
+
+df_clean['genres_list'] = df_clean[col_genres].apply(split_list) if col_genres else [[]]*len(df_clean)
+df_clean['country_list'] = df_clean[col_country].apply(split_list) if col_country else [[]]*len(df_clean)
+df_clean['cast_list'] = df_clean[col_cast].apply(split_list) if col_cast else [[]]*len(df_clean)
+
+# Save cleaned preview
+df_clean.head().to_csv(TABLES_DIR / "sample_head.csv", index=False)
+print("Cleaning complete. Example head saved to tables/sample_head.csv")
+
+
+missing = df_clean.isna().sum().to_frame("missing_count")
+missing["missing_pct"] = (missing["missing_count"] / len(df_clean) * 100).round(2)
+missing.reset_index().rename(columns={"index":"column"}).to_csv(TABLES_DIR / "missing_summary.csv", index=False)
+display(missing.head(20))
+
+# Choose year column: prefer year_added, else release_year
+year_col = 'year_added' if df_clean['year_added'].notna().sum()>0 else ('release_year' if df_clean['release_year'].notna().sum()>0 else None)
+print("Using year column for trends:", year_col)
+
+
+if col_type:
+    type_counts = df_clean[col_type].value_counts().reset_index()
+    type_counts.columns = ['type','count']
+    type_counts['pct'] = (type_counts['count'] / type_counts['count'].sum() * 100).round(2)
+    type_counts.to_csv(TABLES_DIR / "type_counts.csv", index=False)
+    print(type_counts)
+    # Plot
+    fig, ax = plt.subplots(figsize=(6,4))
+    ax.bar(type_counts['type'], type_counts['count'])
+    ax.set_title("Type distribution (Movie vs TV Show)")
+    ax.set_ylabel("Count")
+    plt.tight_layout()
+    fig.savefig(PLOTS_DIR / "type_distribution.png", bbox_inches='tight')
+    plt.show()
+else:
+    print("No type column detected; skipping.")
+
+
+if year_col and col_type:
+    temp = df_clean[[year_col, col_type]].dropna(subset=[year_col])
+    temp[year_col] = temp[year_col].astype(int)
+    by_year = temp.groupby([year_col, col_type]).size().unstack(fill_value=0)
+    by_year.to_csv(TABLES_DIR / "type_by_year.csv")
+    # Plot
+    fig, ax = plt.subplots(figsize=(10,5))
+    for c in by_year.columns:
+        ax.plot(by_year.index, by_year[c], marker='o', label=str(c))
+    ax.set_title(f"Titles by Type over {year_col}")
+    ax.set_xlabel("Year")
+    ax.set_ylabel("Count")
+    ax.legend()
+    plt.tight_layout()
+    fig.savefig(PLOTS_DIR / "type_by_year.png", bbox_inches='tight')
+    plt.show()
+else:
+    print("Year column or type column missing — skipping yearwise type trend.")
+
+
+# Explode genres
+gcols = ['title','genres_list'] + ([year_col] if year_col else [])
+gdf = df_clean[gcols].explode('genres_list').rename(columns={'genres_list':'genre'})
+gdf['genre'] = gdf['genre'].astype('category')
+
+top_genres = gdf['genre'].value_counts().nlargest(15).reset_index()
+top_genres.columns = ['genre','count']
+top_genres.to_csv(TABLES_DIR / "top_genres.csv", index=False)
+display(top_genres)
+
+# Plot top genres
+fig, ax = plt.subplots(figsize=(9,5))
+ax.bar(top_genres['genre'], top_genres['count'])
+ax.set_title("Top 15 Genres - Overall")
+plt.xticks(rotation=45, ha='right')
+plt.tight_layout()
+fig.savefig(PLOTS_DIR / "top_genres.png", bbox_inches='tight')
+plt.show()
+
+# Trend for top 6 genres if year exists
+if year_col:
+    top6 = top_genres['genre'].head(6).tolist()
+    gtrend = gdf[gdf['genre'].isin(top6)].groupby([year_col,'genre']).size().unstack(fill_value=0)
+    gtrend.to_csv(TABLES_DIR / "top6_genres_by_year.csv")
+    fig, ax = plt.subplots(figsize=(10,6))
+    for col in gtrend.columns:
+        ax.plot(gtrend.index.astype(int), gtrend[col], marker='o', label=col)
+    ax.set_title("Top 6 Genres Over Years")
+    ax.set_xlabel("Year")
+    ax.set_ylabel("Count")
+    ax.legend()
+    plt.tight_layout()
+    fig.savefig(PLOTS_DIR / "top6_genres_trend.png", bbox_inches='tight')
+    plt.show()
+
+
+ccols = ['title','country_list'] + ([year_col] if year_col else [])
+cdf = df_clean[ccols].explode('country_list').rename(columns={'country_list':'country'})
+
+top_countries = cdf['country'].value_counts().nlargest(20).reset_index()
+top_countries.columns = ['country','count']
+top_countries.to_csv(TABLES_DIR / "top_countries.csv", index=False)
+display(top_countries)
+
+# Plot
+fig, ax = plt.subplots(figsize=(8,6))
+ax.barh(top_countries['country'], top_countries['count'])
+ax.set_title("Top Countries by Number of Titles (Top 20)")
+ax.set_xlabel("Count")
+plt.tight_layout()
+fig.savefig(PLOTS_DIR / "top_countries.png", bbox_inches='tight')
+plt.show()
+
+# Trend for top 5 countries
+if year_col:
+    top5 = top_countries['country'].head(5).tolist()
+    ctrend = cdf[cdf['country'].isin(top5)].groupby([year_col,'country']).size().unstack(fill_value=0)
+    ctrend.to_csv(TABLES_DIR / "top5_countries_by_year.csv")
+    fig, ax = plt.subplots(figsize=(10,6))
+    for c in ctrend.columns:
+        ax.plot(ctrend.index.astype(int), ctrend[c], marker='o', label=c)
+    ax.set_title("Top 5 Countries Over Years")
+    ax.set_xlabel("Year")
+    ax.set_ylabel("Count")
+    ax.legend()
+    plt.tight_layout()
+    fig.savefig(PLOTS_DIR / "top5_countries_trend.png", bbox_inches='tight')
+    plt.show()
+
+
+# Directors
+if col_director:
+    df_clean['director_list'] = df_clean[col_director].apply(split_list)
+    ddf = df_clean.explode('director_list')
+    top_dirs = ddf['director_list'].value_counts().nlargest(20).reset_index()
+    top_dirs.columns = ['director','count']
+    top_dirs.to_csv(TABLES_DIR / "top_directors.csv", index=False)
+    display(top_dirs)
+
+# Cast
+if col_cast:
+    df_clean['cast_list'] = df_clean[col_cast].apply(split_list)
+    cdfc = df_clean.explode('cast_list')
+    top_cast = cdfc['cast_list'].value_counts().nlargest(30).reset_index()
+    top_cast.columns = ['cast_member','count']
+    top_cast.to_csv(TABLES_DIR / "top_cast.csv", index=False)
+    display(top_cast)
+
+
+# Save cleaned full and a sample
+df_clean.to_csv(TABLES_DIR / "netflix_cleaned_full.csv", index=False)
+df_clean.sample(min(500, len(df_clean)), random_state=42).to_csv(TABLES_DIR / "netflix_cleaned_sample.csv", index=False)
+print("Saved cleaned datasets to:", TABLES_DIR)
+
+# Create README
+with open(OUTDIR / "README.txt","w") as f:
+    f.write("Netflix Dataset Analysis outputs\n")
+    f.write(" - plots/: pngs\n - tables/: csvs (cleaned data & summaries)\n")
+
+# Zip outputs
+zip_path = "/content/netflix_analysis_outputs.zip"
+with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+    for folder_name, _, filenames in os.walk(OUTDIR):
+        for filename in filenames:
+            filepath = os.path.join(folder_name, filename)
+            arcname = os.path.relpath(filepath, start=OUTDIR.parent)
+            zf.write(filepath, arcname)
+print("Created zip:", zip_path)
+
+# Download helper (Colab)
+from google.colab import files
+files.download(zip_path)  # this will trigger a download in your browser
+
